@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+#
 # rtsp-deploy.sh — install RTSP viewer + autologin + xinit with task list UI
 set -euo pipefail
 
-### Task list UI ###
+### Task list ###
 TASKS=(
   "Check root privileges"          # 0
   "Update & upgrade packages"      # 1
@@ -15,19 +16,21 @@ TASKS=(
 )
 TOTAL=${#TASKS[@]}
 
-# Draw initial tasks
+# Print initial task list
 echo
 for task in "${TASKS[@]}"; do
   printf " [ ] %s\n" "$task"
 done
 
+# mark_done: replace line idx with a checkmark
 mark_done() {
   local idx=$1
-  tput cuu $(( TOTAL - idx ))
+  tput cuu $(( TOTAL - idx ))     # move cursor up
   printf " \e[32m[✔]\e[0m %s\n" "${TASKS[$idx]}"
-  tput cud $(( TOTAL - idx - 1 ))
+  tput cud $(( TOTAL - idx - 1 ))  # move back down
 }
 
+# spinner: run a background job with a spinner
 spin() {
   local pid=$1 msg=$2
   local sp='|/-\' i=0
@@ -39,14 +42,14 @@ spin() {
   printf "\b✅\n"
 }
 
-#### 0) Check root
+#### 0) Check root privileges
 if (( EUID != 0 )); then
   echo "ERROR: please run as root (sudo)" >&2
   exit 1
 fi
 mark_done 0
 
-# Variables
+# Define variables
 USER_NAME="${SUDO_USER:-ubuntu}"
 HOME_DIR="/home/$USER_NAME"
 BASE_DIR="/opt/rtsp-viewer"
@@ -127,7 +130,6 @@ while true; do
   play_set "$FEEDS/set3.txt"
 done
 EOF
-
 chmod +x "$SCRIPT"
 chown "$USER_NAME":"$USER_NAME" "$SCRIPT"
 mark_done 5
