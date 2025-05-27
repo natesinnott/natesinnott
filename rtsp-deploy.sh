@@ -87,7 +87,7 @@ play_set() {
     ffplay \\
       \$LOWER_FLAGS \\
       \$HWFLAGS \\
-      -rtsp_transport tcp \\
+      -rtsp_transport udp \\
       -noborder \\
       -x 960 -y 540 \\
       -left "\$x" -top "\$y" \\
