@@ -60,7 +60,7 @@ done
 
 # 7) write rotate-views.sh with VA-API detection
 echo "6/6: Writing $SCRIPT…"
-cat > "$SCRIPT" << 'EOF'
+cat > "$SCRIPT" << EOF
 #!/usr/bin/env bash
 set -euo pipefail
 
