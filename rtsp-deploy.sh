@@ -49,7 +49,7 @@ chown -R "$USER_NAME":"$USER_NAME" "$BASE_DIR"
 echo "5/6: Enter your RTSP URLs (4 per set)."
 for set in 1 2 3; do
   echo
-  read -rp "▶ Press [Enter] for set #$set…" _
+  read -rp "▶ Press [Enter] for set #$set…" dummy
   out="$FEED_DIR/set${set}.txt"
   : >"$out"
   echo "  Enter 4 RTSP URLs for set #$set:"
@@ -63,14 +63,18 @@ done
 ### 8) Write rotate-views.sh with baked HWFLAGS
 echo "6/6: Writing rotation script to $SCRIPT…"
 mkdir -p "$(dirname "$SCRIPT")"
+
 cat > "$SCRIPT" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Where our feed files live
 FEEDS="$FEED_DIR"
+# How long each 2×2 grid stays on-screen
 DURATION=30
-
-# low-latency options
+# Any hardware-accel flags we detected at deploy
+HWFLAGS="$HWFLAGS"
+# Low-latency flags, always the same
 LOWER_FLAGS="-fflags nobuffer -flags low_delay -probesize 32 -analyzeduration 0"
 
 play_set() {
@@ -82,7 +86,7 @@ play_set() {
     local y=\$(( (idx / 2) * 540 ))
     ffplay \\
       \$LOWER_FLAGS \\
-      $HWFLAGS \\
+      \$HWFLAGS \\
       -rtsp_transport tcp \\
       -noborder \\
       -x 960 -y 540 \\
@@ -105,7 +109,7 @@ EOF
 chmod +x "$SCRIPT"
 chown "$USER_NAME":"$USER_NAME" "$SCRIPT"
 
-### 9) Autologin drop-in remains (so you land on tty1)
+### 9) Autologin drop-in for tty1
 mkdir -p /etc/systemd/system/getty@tty1.service.d
 cat >/etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
 [Service]
@@ -116,13 +120,13 @@ systemctl daemon-reload
 systemctl enable getty@tty1.service
 
 ### 10) /etc/profile.d launcher for X
-cat >/etc/profile.d/rtsp-viewer.sh <<'LAUNCH'
+cat >/etc/profile.d/rtsp-viewer.sh <<EOF
 #!/usr/bin/env bash
 # Launch RTSP viewer on tty1 after autologin
 if [ -z "\$DISPLAY" ] && [ "\$(tty)" = "/dev/tty1" ]; then
   exec xinit $SCRIPT -- :0 vt1
 fi
-LAUNCH
+EOF
 chmod +x /etc/profile.d/rtsp-viewer.sh
 
 echo
