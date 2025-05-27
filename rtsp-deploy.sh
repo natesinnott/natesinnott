@@ -84,13 +84,14 @@ chmod +x "$SCRIPT"
 chown "$USER_NAME":"$USER_NAME" "$SCRIPT"
 
 #— 8) CONFIGURE TTY1 AUTOLOGIN
-echo "Configuring autologin on tty1…"
+echo "Configuring auto-login on tty1…"
 mkdir -p /etc/systemd/system/getty@tty1.service.d
-cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << 'EOC'
+cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
 [Service]
 ExecStart=
-ExecStart=-/sbin/agetty --autologin '"'"$USER_NAME"'"' --noclear %I $TERM
-EOC
+ExecStart=-/sbin/agetty --autologin $USER_NAME --noclear %I \$TERM
+EOF
+
 systemctl daemon-reload
 systemctl enable getty@tty1.service
 
