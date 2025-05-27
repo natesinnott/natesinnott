@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
-#
-# rtsp-deploy.sh — install RTSP viewer + autologin + xinit
+# rtsp-deploy.sh — install RTSP viewer + autologin + xinit with task list UI
 set -euo pipefail
 
 ### Task list UI ###
 TASKS=(
-  "Check root privileges"
-  "Prompt for RTSP feeds"
-  "Update & upgrade packages"
-  "Install dependencies"
-  "Prepare directories"
-  "Write rotate-views.sh"
-  "Configure tty1 autologin"
-  "Set up auto-startx"
+  "Check root privileges"          # 0
+  "Update & upgrade packages"      # 1
+  "Install dependencies"           # 2
+  "Prepare directories"            # 3
+  "Prompt for RTSP feeds"          # 4
+  "Write rotate-views.sh"          # 5
+  "Configure tty1 autologin"       # 6
+  "Set up auto-startx"             # 7
 )
 TOTAL=${#TASKS[@]}
 
-# Print initial task list
+# Draw initial tasks
 echo
 for task in "${TASKS[@]}"; do
   printf " [ ] %s\n" "$task"
@@ -40,26 +39,45 @@ spin() {
   printf "\b✅\n"
 }
 
-#### 1) Check root
+#### 0) Check root
 if (( EUID != 0 )); then
   echo "ERROR: please run as root (sudo)" >&2
   exit 1
 fi
 mark_done 0
 
-#### 2) Prompt for RTSP feeds (explicit pause)
+# Variables
 USER_NAME="${SUDO_USER:-ubuntu}"
+HOME_DIR="/home/$USER_NAME"
 BASE_DIR="/opt/rtsp-viewer"
 FEED_DIR="$BASE_DIR/feeds"
-mkdir -p "$FEED_DIR"
+SCRIPT="$BASE_DIR/rotate-views.sh"
 
+#### 1) Update & upgrade packages
+( apt-get update -qq >/dev/null 2>&1 && apt-get upgrade -qq -y >/dev/null 2>&1 ) &
+pid=$!; spin $pid "Updating system…"
+mark_done 1
+
+#### 2) Install dependencies
+( apt-get install -qq -y \
+    ffmpeg screen x11-xserver-utils unclutter \
+    xorg xinit git curl >/dev/null 2>&1 ) &
+pid=$!; spin $pid "Installing dependencies…"
+mark_done 2
+
+#### 3) Prepare directories
+mkdir -p "$FEED_DIR"
+chown -R "$USER_NAME":"$USER_NAME" "$BASE_DIR"
+mark_done 3
+
+#### 4) Prompt for RTSP feeds
 prompt_feeds() {
   for set_num in 1 2 3; do
     echo
     read -rp "Press [Enter] to begin entering URLs for set #$set_num…" _
     file="$FEED_DIR/set${set_num}.txt"
-    echo "⏺ Enter 4 RTSP URLs for set #${set_num}:"
     : >"$file"
+    echo "⏺ Enter 4 RTSP URLs for set #${set_num}:"
     for cam in 1 2 3 4; do
       read -rp "   URL #${cam}: " url
       echo "$url" >>"$file"
@@ -77,26 +95,9 @@ if [[ -f "$FEED_DIR/set1.txt" && -f "$FEED_DIR/set2.txt" && -f "$FEED_DIR/set3.t
 else
   prompt_feeds
 fi
-mark_done 1
-
-#### 3) Update & upgrade packages
-( apt-get update -qq >/dev/null 2>&1 && apt-get upgrade -qq -y >/dev/null 2>&1 ) &
-pid=$!; spin $pid "Updating system…"
-mark_done 2
-
-#### 4) Install dependencies
-( apt-get install -qq -y \
-    ffmpeg screen x11-xserver-utils unclutter \
-    xorg xinit git curl >/dev/null 2>&1 ) &
-pid=$!; spin $pid "Installing dependencies…"
-mark_done 3
-
-#### 5) Prepare directories
-chown -R "$USER_NAME":"$USER_NAME" "$BASE_DIR"
 mark_done 4
 
-#### 6) Write rotate-views.sh
-SCRIPT="$BASE_DIR/rotate-views.sh"
+#### 5) Write rotate-views.sh
 cat >"$SCRIPT" << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -126,11 +127,12 @@ while true; do
   play_set "$FEEDS/set3.txt"
 done
 EOF
+
 chmod +x "$SCRIPT"
 chown "$USER_NAME":"$USER_NAME" "$SCRIPT"
 mark_done 5
 
-#### 7) Configure tty1 autologin
+#### 6) Configure tty1 autologin
 mkdir -p /etc/systemd/system/getty@tty1.service.d
 cat >/etc/systemd/system/getty@tty1.service.d/autologin.conf << 'EOC'
 [Service]
@@ -141,7 +143,7 @@ systemctl daemon-reload
 systemctl enable getty@tty1.service
 mark_done 6
 
-#### 8) Set up auto-startx
+#### 7) Set up auto-startx
 BASHP="$HOME_DIR/.bash_profile"
 if ! grep -q 'exec xinit /opt/rtsp-viewer/rotate-views.sh' "$BASHP" 2>/dev/null; then
   cat >>"$BASHP" << 'EOB'
