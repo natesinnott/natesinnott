@@ -1,41 +1,37 @@
 #!/usr/bin/env bash
-# rtsp-deploy.sh — install RTSP viewer + autologin + xinit with task list UI
+#
+# rtsp-deploy.sh — install RTSP viewer + autologin + xinit
 set -euo pipefail
 
-### Spinner and task list UI ###
+### Task list UI ###
 TASKS=(
   "Check root privileges"
+  "Prompt for RTSP feeds"
   "Update & upgrade packages"
   "Install dependencies"
   "Prepare directories"
-  "Prompt for RTSP feeds"
   "Write rotate-views.sh"
   "Configure tty1 autologin"
   "Set up auto-startx"
 )
 TOTAL=${#TASKS[@]}
 
-# Display tasks
+# Print initial task list
 echo
 for task in "${TASKS[@]}"; do
   printf " [ ] %s\n" "$task"
 done
 
-# mark_done: mark task index with check
 mark_done() {
   local idx=$1
-  # Move cursor up
-  tput cuu $((TOTAL - idx))
-  # Overwrite line
+  tput cuu $(( TOTAL - idx ))
   printf " \e[32m[✔]\e[0m %s\n" "${TASKS[$idx]}"
-  # Move cursor down to bottom
-  tput cud $((TOTAL - idx - 1))
+  tput cud $(( TOTAL - idx - 1 ))
 }
 
-# Spinner function
 spin() {
   local pid=$1 msg=$2
-  local sp="|/-\\" i=0
+  local sp='|/-\' i=0
   printf "%s " "$msg"
   while kill -0 "$pid" 2>/dev/null; do
     printf "\b%s" "${sp:i++%${#sp}:1}"
@@ -44,50 +40,36 @@ spin() {
   printf "\b✅\n"
 }
 
-# 1) Check root
-if ((EUID != 0)); then
-  echo "ERROR: Run as root (sudo)." >&2; exit 1
+#### 1) Check root
+if (( EUID != 0 )); then
+  echo "ERROR: please run as root (sudo)" >&2
+  exit 1
 fi
 mark_done 0
 
-# 2) Update & upgrade packages
-( apt update -qq >/dev/null 2>&1 && apt upgrade -qq -y >/dev/null 2>&1 ) &
-pid=$!
-spin $pid "Updating packages…"
-mark_done 1
-
-# 3) Install dependencies
-( apt install -qq -y ffmpeg screen x11-xserver-utils unclutter \
-    xorg xinit git curl >/dev/null 2>&1 ) &
-pid=$!
-spin $pid "Installing dependencies…"
-mark_done 2
-
-# 4) Prepare directories
+#### 2) Prompt for RTSP feeds (explicit pause)
 USER_NAME="${SUDO_USER:-ubuntu}"
-HOME_DIR="/home/$USER_NAME"
 BASE_DIR="/opt/rtsp-viewer"
 FEED_DIR="$BASE_DIR/feeds"
 mkdir -p "$FEED_DIR"
-chown -R "$USER_NAME":"$USER_NAME" "$BASE_DIR"
-mark_done 3
 
-# 5) Prompt for RTSP feeds
 prompt_feeds() {
   for set_num in 1 2 3; do
-    local file="$FEED_DIR/set${set_num}.txt"
     echo
+    read -rp "Press [Enter] to begin entering URLs for set #$set_num…" _
+    file="$FEED_DIR/set${set_num}.txt"
     echo "⏺ Enter 4 RTSP URLs for set #${set_num}:"
     : >"$file"
     for cam in 1 2 3 4; do
-      read -rp "  URL #${cam}: " url
+      read -rp "   URL #${cam}: " url
       echo "$url" >>"$file"
     done
     chown "$USER_NAME":"$USER_NAME" "$file"
   done
 }
+
 if [[ -f "$FEED_DIR/set1.txt" && -f "$FEED_DIR/set2.txt" && -f "$FEED_DIR/set3.txt" ]]; then
-  read -rp "Keep existing feeds? [Y/n]: " yn
+  read -rp "Keep existing feed files? [Y/n]: " yn
   yn="${yn:-Y}"
   if [[ ! "$yn" =~ ^[Yy]$ ]]; then
     prompt_feeds
@@ -95,15 +77,26 @@ if [[ -f "$FEED_DIR/set1.txt" && -f "$FEED_DIR/set2.txt" && -f "$FEED_DIR/set3.t
 else
   prompt_feeds
 fi
+mark_done 1
+
+#### 3) Update & upgrade packages
+( apt-get update -qq >/dev/null 2>&1 && apt-get upgrade -qq -y >/dev/null 2>&1 ) &
+pid=$!; spin $pid "Updating system…"
+mark_done 2
+
+#### 4) Install dependencies
+( apt-get install -qq -y \
+    ffmpeg screen x11-xserver-utils unclutter \
+    xorg xinit git curl >/dev/null 2>&1 ) &
+pid=$!; spin $pid "Installing dependencies…"
+mark_done 3
+
+#### 5) Prepare directories
+chown -R "$USER_NAME":"$USER_NAME" "$BASE_DIR"
 mark_done 4
 
-# 6) Write rotate-views.sh
+#### 6) Write rotate-views.sh
 SCRIPT="$BASE_DIR/rotate-views.sh"
-echo
-spin_cmd="Writing rotate-views.sh…"
-# simulate spin
-( sleep 0.1 ) & pid=$!
-spin $pid "$spin_cmd"
 cat >"$SCRIPT" << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -116,16 +109,11 @@ play_set() {
   mapfile -t cams < "$file"
   local pids=()
   for i in {0..3}; do
-    local x=$(( (i % 2) * 960 ))
-    local y=$(( (i / 2) * 540 ))
-    ffplay \
-      -fflags nobuffer \
-      -flags low_delay \
-      -rtsp_transport tcp \
-      -noborder \
-      -x 960 -y 540 \
-      -left "$x" -top "$y" \
-      "${cams[$i]}" >/dev/null 2>&1 &
+    local x=$(( (i%2)*960 )); local y=$(( (i/2)*540 ))
+    ffplay -fflags nobuffer -flags low_delay \
+           -rtsp_transport tcp -noborder \
+           -x 960 -y 540 -left "$x" -top "$y" \
+           "${cams[$i]}" >/dev/null 2>&1 &
     pids+=( "$!" )
   done
   sleep "$DURATION"
@@ -142,19 +130,18 @@ chmod +x "$SCRIPT"
 chown "$USER_NAME":"$USER_NAME" "$SCRIPT"
 mark_done 5
 
-# 7) Configure tty1 autologin
-( mkdir -p /etc/systemd/system/getty@tty1.service.d && \
-  cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << 'EOC'
+#### 7) Configure tty1 autologin
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat >/etc/systemd/system/getty@tty1.service.d/autologin.conf << 'EOC'
 [Service]
 ExecStart=
-ExecStart=-/sbin/agetty --autologin $USER_NAME --noclear %I $TERM
+ExecStart=-/sbin/agetty --autologin '"$USER_NAME"' --noclear %I $TERM
 EOC
-) >/dev/null 2>&1
 systemctl daemon-reload
 systemctl enable getty@tty1.service
 mark_done 6
 
-# 8) Set up auto-startx
+#### 8) Set up auto-startx
 BASHP="$HOME_DIR/.bash_profile"
 if ! grep -q 'exec xinit /opt/rtsp-viewer/rotate-views.sh' "$BASHP" 2>/dev/null; then
   cat >>"$BASHP" << 'EOB'
@@ -169,4 +156,4 @@ fi
 mark_done 7
 
 echo
-echo "All tasks completed! Reboot to start the RTSP viewer."
+echo "All tasks completed! Reboot now to start the RTSP viewer."
