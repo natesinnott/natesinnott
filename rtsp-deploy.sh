@@ -84,7 +84,7 @@ EOF
 chmod +x "$SCRIPT"
 chown "$USER_NAME":"$USER_NAME" "$SCRIPT"
 
-#— 8) CONFIGURE TTY1 AUTOLOGIN
+# 8) Configure tty1 autologin
 echo "Configuring auto-login on tty1…"
 mkdir -p /etc/systemd/system/getty@tty1.service.d
 cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
@@ -96,14 +96,14 @@ EOF
 systemctl daemon-reload
 systemctl enable getty@tty1.service
 
-# 9) Set up auto-startx
+# 9) Set up auto-startx on tty1
 echo "Setting up startx on login…"
 BASH_PROFILE="$HOME_DIR/.bash_profile"
 if ! grep -q 'exec xinit /opt/rtsp-viewer/rotate-views.sh' "$BASH_PROFILE" 2>/dev/null; then
   cat >> "$BASH_PROFILE" << 'EOB'
 
 # Auto-launch X + RTSP grid on tty1
-if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+if [ -z "\$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
   exec xinit /opt/rtsp-viewer/rotate-views.sh -- :0 vt1
 fi
 EOB
