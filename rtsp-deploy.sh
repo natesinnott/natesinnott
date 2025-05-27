@@ -18,15 +18,16 @@ SCRIPT="$BASE_DIR/rotate-views.sh"
 
 # 3) update & upgrade
 echo "1/6: Updating package lists..."
-apt-get update -qq
+touch ~/apt.log
+apt-get update &> ~/apt.log
 echo "2/6: Upgrading installed packages..."
-apt-get upgrade -qq -y
+apt-get upgrade -y &> ~/apt.log
 
 # 4) install dependencies
 echo "3/6: Installing dependencies..."
-apt-get install -qq -y \
+apt-get install -y \
   ffmpeg screen x11-xserver-utils unclutter \
-  xorg xinit git curl
+  xorg xinit git curl &> ~/apt.log
 
 # 5) prepare directories
 echo "4/6: Preparing directories..."
