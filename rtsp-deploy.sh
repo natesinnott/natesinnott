@@ -1,88 +1,83 @@
 #!/usr/bin/env bash
 #
-# rtsp-deploy.sh — install RTSP viewer + autologin + xinit with hardware-decode support
-set -euo pipefail
+# rtsp-deploy.sh — install RTSP viewer + autologin + xinit w/ hardware‐decode detection
 
-# 1) Root check
+set -e -o pipefail
+
+### 1) Root check
 if (( EUID != 0 )); then
-  echo "ERROR: Please run as root (sudo)." >&2
+  echo "ERROR: please run as root (sudo)" >&2
   exit 1
 fi
 
-# 2) Variables
+### 2) Variables
 USER_NAME="${SUDO_USER:-ubuntu}"
 HOME_DIR="/home/$USER_NAME"
 BASE_DIR="/opt/rtsp-viewer"
 FEED_DIR="$BASE_DIR/feeds"
 SCRIPT="$BASE_DIR/rotate-views.sh"
 
-# 3) Update & upgrade
+### 3) Update & upgrade
 echo "1/6: Updating package lists..."
 apt-get update -qq
 echo "2/6: Upgrading installed packages..."
 apt-get upgrade -qq -y
 
-# 4) Install dependencies
+### 4) Install dependencies
 echo "3/6: Installing dependencies..."
 apt-get install -qq -y \
   ffmpeg screen x11-xserver-utils unclutter \
   xorg xinit git curl
 
-# 5) Prepare directories
+### 5) Prepare directories
 echo "4/6: Preparing directories..."
 mkdir -p "$FEED_DIR"
 chown -R "$USER_NAME":"$USER_NAME" "$BASE_DIR"
 
-# 6) Prompt for RTSP feeds
+### 6) Prompt for RTSP feeds
 echo "5/6: Enter your RTSP URLs (4 per set)."
 for set_num in 1 2 3; do
   echo
-  read -rp "▶ Press [Enter] to begin set #$set_num…" _
-  file="$FEED_DIR/set${set_num}.txt"
-  : >"$file"
+  read -rp "▶ Press [Enter] to begin set #$set_num…" dummy
+  out="$FEED_DIR/set${set_num}.txt"
+  : > "$out"
   echo "  Enter 4 RTSP URLs for camera set #$set_num:"
   for cam in 1 2 3 4; do
     read -rp "    URL #$cam: " url
-    echo "$url" >>"$file"
+    echo "$url" >> "$out"
   done
-  chown "$USER_NAME":"$USER_NAME" "$file"
+  chown "$USER_NAME":"$USER_NAME" "$out"
 done
 
-# 7) Write rotate-views.sh (quoted here-doc + detection inside)
+### 7) Write rotate-views.sh
 echo "6/6: Writing $SCRIPT…"
-cat > "$SCRIPT" << 'EOF'
+cat > "$SCRIPT" << 'INNER'
 #!/usr/bin/env bash
 set -euo pipefail
 
 FEEDS="/opt/rtsp-viewer/feeds"
 DURATION=30
 
-# Detect if VA-API device exists
+# Detect hardware decode
 if [[ -e /dev/dri/renderD128 ]]; then
-  HW_FLAGS=( 
-    -hwaccel vaapi
-    -hwaccel_device /dev/dri/renderD128
-    -hwaccel_output_format vaapi
-  )
+  HW_FLAGS=( -hwaccel vaapi \
+             -hwaccel_device /dev/dri/renderD128 \
+             -hwaccel_output_format vaapi )
 else
   HW_FLAGS=()
 fi
 
-# Low-latency flags
-LOWLATENCY=(
-  -fflags nobuffer
-  -flags low_delay
-  -probesize 32
-  -analyzeduration 0
-)
+# Low-latency options
+LOWLATENCY=( -fflags nobuffer \
+             -flags low_delay \
+             -probesize 32 \
+             -analyzeduration 0 )
 
 play_set() {
-  local file="$1"
-  mapfile -t cams < "$file"
-  local pids=()
+  local f="$1" pids=()
+  mapfile -t cams < "$f"
   for i in {0..3}; do
-    local x=$(( (i % 2) * 960 ))
-    local y=$(( (i / 2) * 540 ))
+    local x=$(( (i%2)*960 )) y=$(( (i/2)*540 ))
     ffplay \
       "${HW_FLAGS[@]}" \
       "${LOWLATENCY[@]}" \
@@ -90,8 +85,7 @@ play_set() {
       -noborder \
       -x 960 -y 540 \
       -left "$x" -top "$y" \
-      "${cams[$i]}" \
-      >/dev/null 2>&1 &
+      "${cams[$i]}" >/dev/null 2>&1 &
     pids+=( "$!" )
   done
   sleep "$DURATION"
@@ -103,34 +97,34 @@ while true; do
   play_set "$FEEDS/set2.txt"
   play_set "$FEEDS/set3.txt"
 done
-EOF
+INNER
 
 chmod +x "$SCRIPT"
 chown "$USER_NAME":"$USER_NAME" "$SCRIPT"
 
-# 8) Configure tty1 autologin
+### 8) Configure tty1 autologin
 echo "Configuring auto-login on tty1…"
 mkdir -p /etc/systemd/system/getty@tty1.service.d
-cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << 'AUTOINLOG'
+cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
 [Service]
 ExecStart=
-ExecStart=-/sbin/agetty --autologin '"'"$USER_NAME"'"' --noclear %I \$TERM
-AUTOINLOG
-
+ExecStart=-/sbin/agetty --autologin $USER_NAME --noclear %I \$TERM
+EOF
 systemctl daemon-reload
 systemctl enable getty@tty1.service
 
-# 9) Set up auto-startx on tty1
+### 9) Auto-start X on tty1 login
 echo "Setting up startx on login…"
-BASH_PROFILE="$HOME_DIR/.bash_profile"
-if ! grep -q 'exec xinit /opt/rtsp-viewer/rotate-views.sh' "$BASH_PROFILE" 2>/dev/null; then
-  cat >> "$BASH_PROFILE" << 'AUTOX'
-# Auto-launch X + RTSP grid on tty1
+PROFILE="$HOME_DIR/.bash_profile"
+if ! grep -q 'exec xinit /opt/rtsp-viewer/rotate-views.sh' "$PROFILE" 2>/dev/null; then
+  cat >> "$PROFILE" << 'EOF'
+
+# Auto-launch RTSP viewer on tty1
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
   exec xinit /opt/rtsp-viewer/rotate-views.sh -- :0 vt1
 fi
-AUTOX
-  chown "$USER_NAME":"$USER_NAME" "$BASH_PROFILE"
+EOF
+  chown "$USER_NAME":"$USER_NAME" "$PROFILE"
 fi
 
 echo
