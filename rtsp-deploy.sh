@@ -85,7 +85,7 @@ play_set() {
     ffplay \
       "${HW_FLAGS[@]}" \
       "${LOWLATENCY[@]}" \
-      -rtsp_transport tcp \
+      -rtsp_transport udp \
       -noborder \
       -x 960 -y 540 \
       -left "$x" -top "$y" \
