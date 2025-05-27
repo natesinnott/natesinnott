@@ -18,16 +18,17 @@ SCRIPT="$BASE_DIR/rotate-views.sh"
 
 ### 3) Update & upgrade
 echo "1/6: Updating package lists..."
-apt-get update -qq
+touch ~/apt.log
+apt-get update &>> ~/apt.log 
 echo "2/6: Upgrading packages..."
-apt-get upgrade -qq -y
+apt-get upgrade -y &>> ~/apt.log
 
 ### 4) Install dependencies + VA-API tools
 echo "3/6: Installing dependencies + VA-API tooling..."
-apt-get install -qq -y \
+apt-get install -y \
   ffmpeg screen x11-xserver-utils unclutter \
   xorg xinit git curl \
-  vainfo intel-media-va-driver-non-free
+  vainfo intel-media-va-driver-non-free &>> ~/apt.log
 
 ### 5) Probe for real H.264 decode support
 echo -n "   Probing VA-API for H.264 decode support… "
