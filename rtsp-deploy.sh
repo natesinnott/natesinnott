@@ -45,20 +45,30 @@ echo "4/6: Preparing directories..."
 mkdir -p "$FEED_DIR"
 chown -R "$USER_NAME":"$USER_NAME" "$BASE_DIR"
 
-### 7) Prompt for RTSP feeds
-echo "5/6: Enter your RTSP URLs (4 per set)."
-for set in 1 2 3; do
-  echo
-  read -rp "▶ Press [Enter] for set #$set…" dummy
-  out="$FEED_DIR/set${set}.txt"
-  : >"$out"
-  echo "  Enter 4 RTSP URLs for set #$set:"
-  for cam in 1 2 3 4; do
-    read -rp "    URL #$cam: " url
-    echo "$url" >>"$out"
-  done
-  chown "$USER_NAME":"$USER_NAME" "$out"
-done
+### 7) Write the RTSP feed files (hard-coded)
+echo "5/6: Writing RTSP feed lists…"
+cat > "$FEED_DIR/set1.txt" <<EOF
+rtsps://10.0.23.1:7441/FnYrNPfHNWVaROyy?enableSrtp
+rtsps://10.0.23.1:7441/BZKLt5TQ23oT6gf3?enableSrtp
+rtsps://10.0.23.1:7441/vG4KDLEyFDcMSufH?enableSrtp
+rtsps://10.0.23.1:7441/jhsn4gHsXtv1CIQY?enableSrtp
+EOF
+
+cat > "$FEED_DIR/set2.txt" <<EOF
+rtsps://10.0.23.1:7441/dacNxekxq3U2Zsg2?enableSrtp
+rtsps://10.0.23.1:7441/sxwTFZMuF9Cg2lcy?enableSrtp
+rtsps://10.0.23.1:7441/BWQ9L2nMjZUZh8Z8?enableSrtp
+rtsps://10.0.23.1:7441/RIyAFigT0foCy8wp?enableSrtp
+EOF
+
+cat > "$FEED_DIR/set3.txt" <<EOF
+rtsps://10.0.23.1:7441/g5iXuY0PzPO50jQJ?enableSrtp
+rtsps://10.0.23.1:7441/fGUUVqUA3rOV9dmE?enableSrtp
+rtsps://10.0.23.1:7441/L7q0oP9yUR2tK2Sk?enableSrtp
+rtsps://10.0.23.1:7441/IFIapnss0tr60pUd?enableSrtp
+EOF
+
+chown "$USER_NAME":"$USER_NAME" "$FEED_DIR"/*.txt
 
 ### 8) Write rotate-views.sh with baked HWFLAGS
 echo "6/6: Writing rotation script to $SCRIPT…"
