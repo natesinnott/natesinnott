@@ -2,10 +2,10 @@
 ```
 [ LANGUAGES BREAKDOWN ]
 
-TypeScript   --> 67,075 lines
+TypeScript   --> 69,130 lines
 JavaScript   --> 31,088 lines
-Others       --> 3,547 lines
+Others       --> 3,587 lines
 
-[ TOTAL LINES OF CODE: 101,710 ]
+[ TOTAL LINES OF CODE: 103,805 ]
 ```
  <!-- LANGUAGES BREAKDOWN END -->
