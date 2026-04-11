@@ -57,7 +57,9 @@ Currently in active development as my final year project.
 ## Links
 
 🌐 [Website](nathanielsinnott.com)
-💼 [LinkedIn](https://www.linkedin.com/in/natesinnott/)  
+
+💼 [LinkedIn](https://www.linkedin.com/in/natesinnott/)
+
 📧 [Email](mailto:ns@nathanielsinnott.com)
 
 ---
