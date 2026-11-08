@@ -1,17 +1,17 @@
 {"header" : {
   "cloc_url"           : "github.com/AlDanial/cloc",
   "cloc_version"       : "1.98",
-  "elapsed_seconds"    : 1.25207686424255,
-  "n_files"            : 1719,
-  "n_lines"            : 307252,
-  "files_per_second"   : 1372.91890705122,
-  "lines_per_second"   : 245393.88017993,
+  "elapsed_seconds"    : 0.918501138687134,
+  "n_files"            : 1770,
+  "n_lines"            : 317146,
+  "files_per_second"   : 1927.05259193251,
+  "lines_per_second"   : 345286.452723744,
   "report_file"        : "../output/cloc-output.json"},
 "TypeScript" :{
-  "nFiles": 1062,
-  "blank": 29885,
-  "comment": 59309,
-  "code": 162931},
+  "nFiles": 1111,
+  "blank": 30546,
+  "comment": 60075,
+  "code": 171341},
 "JavaScript" :{
   "nFiles": 561,
   "blank": 5340,
@@ -28,10 +28,10 @@
   "comment": 131,
   "code": 1489},
 "SQL" :{
-  "nFiles": 25,
+  "nFiles": 27,
   "blank": 125,
-  "comment": 127,
-  "code": 799},
+  "comment": 131,
+  "code": 851},
 "Bourne Shell" :{
   "nFiles": 4,
   "blank": 30,
@@ -40,7 +40,7 @@
 "Dockerfile" :{
   "nFiles": 3,
   "blank": 17,
-  "comment": 33,
+  "comment": 34,
   "code": 67},
 "INI" :{
   "nFiles": 2,
@@ -48,7 +48,7 @@
   "comment": 0,
   "code": 43},
 "SUM": {
-  "blank": 36207,
-  "comment": 67556,
-  "code": 203489,
-  "nFiles": 1719} }
+  "blank": 36868,
+  "comment": 68327,
+  "code": 211951,
+  "nFiles": 1770} }
